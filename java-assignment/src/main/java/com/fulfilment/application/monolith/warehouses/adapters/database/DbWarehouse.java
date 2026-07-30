@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 @Entity
@@ -14,6 +15,8 @@ import java.time.LocalDateTime;
 public class DbWarehouse {
 
   @Id @GeneratedValue public Long id;
+
+  @Version public Long version;
 
   public String businessUnitCode;
 
@@ -31,12 +34,14 @@ public class DbWarehouse {
 
   public Warehouse toWarehouse() {
     var warehouse = new Warehouse();
+    warehouse.id = this.id;
     warehouse.businessUnitCode = this.businessUnitCode;
     warehouse.location = this.location;
     warehouse.capacity = this.capacity;
     warehouse.stock = this.stock;
     warehouse.createdAt = this.createdAt;
     warehouse.archivedAt = this.archivedAt;
+    warehouse.version = this.version;
     return warehouse;
   }
 }

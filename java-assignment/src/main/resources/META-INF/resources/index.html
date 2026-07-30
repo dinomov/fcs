@@ -1,153 +1,312 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <title>Hibernate ORM with Panache quickstart - Quarkus</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/wingcss/0.1.8/wing.min.css"/>
-    <style>
-        input[type=number] {
-            width: 100%;
-            padding: 12px 20px;
-            margin: 8px 0;
-            display: inline-block;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            -webkit-transition: .5s;
-            transition: .5s;
-            outline: 0;
-            font-family: 'Open Sans', serif;
-        }
-    </style>
-    <!-- Load AngularJS -->
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
-    <script type="text/javascript">
-      var app = angular.module("ProductManagement", []);
-
-      //Controller Part
-      app.controller("ProductManagementController", function ($scope, $http) {
-
-        //Initialize page with default data which is blank in this example
-        $scope.products = [];
-
-        $scope.form = {
-          id: -1,
-          name: ""
-        };
-
-        //Now load the data from server
-        _refreshPageData();
-
-        //HTTP POST/PUT methods for add/edit products
-        $scope.update = function () {
-          var method = "";
-          var url = "";
-          var data = {};
-          if ($scope.form.id == -1) {
-            //Id is absent so add products - POST operation
-            method = "POST";
-            url = '/product';
-            data.name = $scope.form.name;
-          } else {
-            //If Id is present, it's edit operation - PUT operation
-            method = "PUT";
-            url = '/product/' + $scope.form.id;
-            data.name = $scope.form.name;
-          }
-
-          $http({
-            method: method,
-            url: url,
-            data: angular.toJson(data),
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }).then(_success, _error);
-        };
-
-        //HTTP DELETE- delete product by id
-        $scope.remove = function (product) {
-          $http({
-            method: 'DELETE',
-            url: '/product/' + product.id
-          }).then(_success, _error);
-        };
-
-        //In case of edit products, populate form with product data
-        $scope.edit = function (product) {
-          $scope.form.name = product.name;
-          $scope.form.id = product.id;
-        };
-
-          /* Private Methods */
-        //HTTP GET- get all products collection
-        function _refreshPageData() {
-          $http({
-            method: 'GET',
-            url: '/product'
-          }).then(function successCallback(response) {
-            $scope.products = response.data;
-          }, function errorCallback(response) {
-            console.log(response.statusText);
-          });
-        }
-
-        function _success(response) {
-          _refreshPageData();
-          _clearForm()
-        }
-
-        function _error(response) {
-          alert(response.data.message || response.statusText);
-        }
-
-        //Clear the form
-        function _clearForm() {
-          $scope.form.name = "";
-          $scope.form.id = -1;
-        }
-      });
-    </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Warehouse Management</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #f4f6f8; color: #202124; }
+    header { background: #17324d; color: white; padding: 24px calc((100% - 1100px) / 2); }
+    main { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    section { background: white; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 8px #00000012; }
+    h1, h2 { margin-top: 0; }
+    form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: end; }
+    label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: .9rem; }
+    input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #bbc4cc; border-radius: 4px; font: inherit; }
+    button { border: 0; border-radius: 4px; padding: 10px 14px; color: white; background: #1769aa; cursor: pointer; }
+    button.secondary { background: #68737d; }
+    button.danger { background: #b3261e; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e2e6ea; }
+    th { background: #f0f3f5; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .message { min-height: 1.4em; margin: 8px 0; }
+    .error { color: #b3261e; }
+    .success { color: #137333; }
+    @media (max-width: 650px) { th:nth-child(1), td:nth-child(1) { display: none; } }
+  </style>
 </head>
-<body ng-app="ProductManagement" ng-controller="ProductManagementController">
+<body>
+  <header>
+    <h1>Warehouse Management</h1>
+    <p>Manage products, stores and active warehouses.</p>
+  </header>
 
-<div class="container">
-    <h1>Java Code Assignment</h1>
-    <p>This application demonstrates how a Quarkus application implements a CRUD endpoint to manage products using Hibernate ORM with Panache.
-        This management interface invokes the CRUD service endpoint, which interacts with a database using JPA and several other well known libraries.
-    </p>
-
-    <h3>Add/Edit an Product to the Warehouse</h3>
-    <form ng-submit="update()">
-        <div class="row">
-            <div class="col-6"><input type="text" placeholder="Name" ng-model="form.name" size="60"/></div>
+  <main>
+    <section>
+      <h2>Products</h2>
+      <p id="product-message" class="message"></p>
+      <form id="product-form">
+        <input id="product-id" type="hidden">
+        <label>Name <input id="product-name" required maxlength="40"></label>
+        <label>Stock <input id="product-stock" type="number" min="0" required></label>
+        <label>Description <input id="product-description"></label>
+        <label>Price <input id="product-price" type="number" min="0" step="0.01"></label>
+        <div class="actions">
+          <button type="submit">Save product</button>
+          <button type="button" class="secondary" id="product-cancel">Clear</button>
         </div>
-        <input type="submit" value="Save"/>
-    </form>
+      </form>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Stock</th><th>Price</th><th>Actions</th></tr></thead>
+        <tbody id="product-list"></tbody>
+      </table>
+    </section>
 
-    <h3>Product List</h3>
-    <div class="row">
-        <div class="col-2">Name</div>
-    </div>
-    <div class="row" ng-repeat="product in products">
-        <div class="col-2">{{ product.name }}</div>
-        <div class="col-8"><a ng-click="edit( product )" class="btn">Edit</a> <a ng-click="remove( product )" class="btn">Remove</a>
+    <section>
+      <h2>Stores</h2>
+      <p id="store-message" class="message"></p>
+      <form id="store-form">
+        <input id="store-id" type="hidden">
+        <label>Name <input id="store-name" required maxlength="40"></label>
+        <label>Products in stock <input id="store-stock" type="number" min="0" required></label>
+        <div class="actions">
+          <button type="submit">Save store</button>
+          <button type="button" class="secondary" id="store-cancel">Clear</button>
         </div>
-    </div>
+      </form>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Products in stock</th><th>Actions</th></tr></thead>
+        <tbody id="store-list"></tbody>
+      </table>
+    </section>
 
-    <p>Behind the scenes, we have:
-        <ul>
-            <li>Hibernate ORM with Panache taking care of all CRUD operations</li>
-            <li>RESTEasy powering the REST API</li>
-            <li>ArC, a CDI based dependency injection framework</li>
-            <li>the Narayana Transaction Manager coordinating all transactions</li>
-            <li>Agroal, the high performance Datasource implementation</li>
-            <li>Infinispan used as Hibernate 2nd level caching: enabled on both entities and queries</li>
-            <li>The Undertow webserver</li>
-            <li>Some magic bytecode generation plugged in the compiler...</li>
-        </ul>
-    </p>
-</div>
+    <section>
+      <h2>Warehouses</h2>
+      <p>Editing a warehouse uses the replacement operation: the old row is archived and a new row keeps the same business unit code.</p>
+      <p id="warehouse-message" class="message"></p>
+      <form id="warehouse-form">
+        <input id="warehouse-id" type="hidden">
+        <label>Business unit code <input id="warehouse-code" required></label>
+        <label>Location <input id="warehouse-location" required></label>
+        <label>Capacity <input id="warehouse-capacity" type="number" min="0" required></label>
+        <label>Stock <input id="warehouse-stock" type="number" min="0" required></label>
+        <div class="actions">
+          <button type="submit">Save warehouse</button>
+          <button type="button" class="secondary" id="warehouse-cancel">Clear</button>
+        </div>
+      </form>
+      <table>
+        <thead><tr><th>Business unit</th><th>Location</th><th>Capacity</th><th>Stock</th><th>Actions</th></tr></thead>
+        <tbody id="warehouse-list"></tbody>
+      </table>
+      <h3>Archived warehouse history</h3>
+      <table>
+        <thead><tr><th>Business unit</th><th>Location</th><th>Capacity</th><th>Stock</th><th>Archived</th></tr></thead>
+        <tbody id="archived-warehouse-list"></tbody>
+      </table>
+    </section>
+  </main>
 
+  <script>
+    const jsonHeaders = { 'Content-Type': 'application/json' };
+
+    async function request(url, options = {}) {
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let body = {};
+      try { body = text ? JSON.parse(text) : {}; } catch (_) { body = { error: text }; }
+      if (!response.ok) {
+        throw new Error(body.error || body.message || `Request failed (${response.status})`);
+      }
+      return body;
+    }
+
+    function showMessage(id, message, error = false) {
+      const element = document.getElementById(id);
+      element.textContent = message || '';
+      element.className = `message ${error ? 'error' : 'success'}`;
+    }
+
+    function productPayload() {
+      const price = document.getElementById('product-price').value;
+      return {
+        name: document.getElementById('product-name').value,
+        stock: Number(document.getElementById('product-stock').value),
+        description: document.getElementById('product-description').value || null,
+        price: price === '' ? null : Number(price)
+      };
+    }
+
+    async function loadProducts() {
+      const products = await request('/product');
+      document.getElementById('product-list').innerHTML = products.map(product => `
+        <tr>
+          <td>${product.id}</td><td>${escapeHtml(product.name)}</td><td>${product.stock}</td>
+          <td>${product.price == null ? '' : product.price}</td>
+          <td class="actions">
+            <button type="button" data-product-edit="${product.id}">Edit</button>
+            <button type="button" class="danger" data-product-delete="${product.id}">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('product-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const id = document.getElementById('product-id').value;
+      try {
+        await request(id ? `/product/${id}` : '/product', {
+          method: id ? 'PUT' : 'POST', headers: jsonHeaders,
+          body: JSON.stringify(productPayload())
+        });
+        clearProductForm(); await loadProducts(); showMessage('product-message', 'Product saved.');
+      } catch (error) { showMessage('product-message', error.message, true); }
+    });
+
+    document.getElementById('product-list').addEventListener('click', async event => {
+      const editId = event.target.dataset.productEdit;
+      const deleteId = event.target.dataset.productDelete;
+      try {
+        if (editId) {
+          const product = await request(`/product/${editId}`);
+          document.getElementById('product-id').value = product.id;
+          document.getElementById('product-name').value = product.name || '';
+          document.getElementById('product-stock').value = product.stock ?? 0;
+          document.getElementById('product-description').value = product.description || '';
+          document.getElementById('product-price').value = product.price ?? '';
+        } else if (deleteId && confirm('Delete this product?')) {
+          await request(`/product/${deleteId}`, { method: 'DELETE' });
+          await loadProducts(); showMessage('product-message', 'Product deleted.');
+        }
+      } catch (error) { showMessage('product-message', error.message, true); }
+    });
+
+    document.getElementById('product-cancel').addEventListener('click', clearProductForm);
+    function clearProductForm() {
+      document.getElementById('product-form').reset();
+      document.getElementById('product-id').value = '';
+    }
+
+    async function loadStores() {
+      const stores = await request('/store');
+      document.getElementById('store-list').innerHTML = stores.map(store => `
+        <tr>
+          <td>${store.id}</td><td>${escapeHtml(store.name)}</td>
+          <td>${store.quantityProductsInStock}</td>
+          <td class="actions">
+            <button type="button" data-store-edit="${store.id}">Edit</button>
+            <button type="button" class="danger" data-store-delete="${store.id}">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('store-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const id = document.getElementById('store-id').value;
+      const payload = {
+        name: document.getElementById('store-name').value,
+        quantityProductsInStock: Number(document.getElementById('store-stock').value)
+      };
+      try {
+        await request(id ? `/store/${id}` : '/store', {
+          method: id ? 'PUT' : 'POST', headers: jsonHeaders,
+          body: JSON.stringify(payload)
+        });
+        clearStoreForm(); await loadStores(); showMessage('store-message', 'Store saved.');
+      } catch (error) { showMessage('store-message', error.message, true); }
+    });
+
+    document.getElementById('store-list').addEventListener('click', async event => {
+      const editId = event.target.dataset.storeEdit;
+      const deleteId = event.target.dataset.storeDelete;
+      try {
+        if (editId) {
+          const store = await request(`/store/${editId}`);
+          document.getElementById('store-id').value = store.id;
+          document.getElementById('store-name').value = store.name || '';
+          document.getElementById('store-stock').value = store.quantityProductsInStock ?? 0;
+        } else if (deleteId && confirm('Delete this store?')) {
+          await request(`/store/${deleteId}`, { method: 'DELETE' });
+          await loadStores(); showMessage('store-message', 'Store deleted.');
+        }
+      } catch (error) { showMessage('store-message', error.message, true); }
+    });
+
+    document.getElementById('store-cancel').addEventListener('click', clearStoreForm);
+    function clearStoreForm() {
+      document.getElementById('store-form').reset();
+      document.getElementById('store-id').value = '';
+    }
+
+    function warehousePayload() {
+      return {
+        businessUnitCode: document.getElementById('warehouse-code').value,
+        location: document.getElementById('warehouse-location').value,
+        capacity: Number(document.getElementById('warehouse-capacity').value),
+        stock: Number(document.getElementById('warehouse-stock').value)
+      };
+    }
+
+    async function loadWarehouses() {
+      const warehouses = await request('/warehouse');
+      document.getElementById('warehouse-list').innerHTML = warehouses.map(warehouse => `
+        <tr>
+          <td>${escapeHtml(warehouse.businessUnitCode)}</td><td>${escapeHtml(warehouse.location)}</td>
+          <td>${warehouse.capacity}</td><td>${warehouse.stock}</td>
+          <td class="actions">
+            <button type="button" data-warehouse-edit="${escapeHtml(warehouse.businessUnitCode)}">Replace</button>
+            <button type="button" class="danger" data-warehouse-delete="${escapeHtml(warehouse.businessUnitCode)}">Archive</button>
+          </td>
+        </tr>`).join('');
+
+      const archived = await request('/warehouse/archived');
+      document.getElementById('archived-warehouse-list').innerHTML = archived.map(warehouse => `
+        <tr>
+          <td>${escapeHtml(warehouse.businessUnitCode)}</td><td>${escapeHtml(warehouse.location)}</td>
+          <td>${warehouse.capacity}</td><td>${warehouse.stock}</td><td>Archived</td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('warehouse-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const code = document.getElementById('warehouse-id').value;
+      const payload = warehousePayload();
+      try {
+        const url = code ? `/warehouse/${encodeURIComponent(code)}/replacement` : '/warehouse';
+        if (code) delete payload.businessUnitCode;
+        await request(url, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+        clearWarehouseForm(); await loadWarehouses(); showMessage('warehouse-message', code ? 'Warehouse replaced.' : 'Warehouse created.');
+      } catch (error) { showMessage('warehouse-message', error.message, true); }
+    });
+
+    document.getElementById('warehouse-list').addEventListener('click', async event => {
+      const editCode = event.target.dataset.warehouseEdit;
+      const deleteCode = event.target.dataset.warehouseDelete;
+      try {
+        if (editCode) {
+          const warehouse = await request(`/warehouse/${encodeURIComponent(editCode)}`);
+          document.getElementById('warehouse-id').value = warehouse.businessUnitCode;
+          document.getElementById('warehouse-code').value = warehouse.businessUnitCode;
+          document.getElementById('warehouse-code').readOnly = true;
+          document.getElementById('warehouse-location').value = warehouse.location || '';
+          document.getElementById('warehouse-capacity').value = warehouse.capacity ?? '';
+          document.getElementById('warehouse-stock').value = warehouse.stock ?? '';
+        } else if (deleteCode && confirm('Archive this warehouse?')) {
+          await request(`/warehouse/${encodeURIComponent(deleteCode)}`, { method: 'DELETE' });
+          await loadWarehouses(); showMessage('warehouse-message', 'Warehouse archived.');
+        }
+      } catch (error) { showMessage('warehouse-message', error.message, true); }
+    });
+
+    document.getElementById('warehouse-cancel').addEventListener('click', clearWarehouseForm);
+    function clearWarehouseForm() {
+      document.getElementById('warehouse-form').reset();
+      document.getElementById('warehouse-id').value = '';
+      document.getElementById('warehouse-code').readOnly = false;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[character]));
+    }
+
+    Promise.all([loadProducts(), loadStores(), loadWarehouses()]).catch(error => {
+      showMessage('product-message', error.message, true);
+      showMessage('store-message', error.message, true);
+      showMessage('warehouse-message', error.message, true);
+    });
+  </script>
 </body>
 </html>

@@ -10,52 +10,43 @@ import org.junit.jupiter.api.Test;
 public class WarehouseEndpointIT {
 
   @Test
-  public void testSimpleListWarehouses() {
-
-    final String path = "warehouse";
-
-    // List all, should have all 3 products the database has initially:
+  public void listsSeededWarehouses() {
     given()
         .when()
-        .get(path)
+        .get("warehouse")
         .then()
         .statusCode(200)
         .body(containsString("MWH.001"), containsString("MWH.012"), containsString("MWH.023"));
   }
 
   @Test
-  public void testSimpleCheckingArchivingWarehouses() {
+  public void createsGetsReplacesAndArchivesWarehouse() {
+    final String code = "MWH.IT.COVERAGE";
 
-    // Uncomment the following lines to test the WarehouseResourceImpl implementation
+    given()
+        .contentType("application/json")
+        .body(
+            "{\"businessUnitCode\":\""
+                + code
+                + "\",\"location\":\"EINDHOVEN-001\",\"capacity\":20,\"stock\":5}")
+        .when()
+        .post("warehouse")
+        .then()
+        .statusCode(200)
+        .body(containsString(code), containsString("EINDHOVEN-001"));
 
-    // final String path = "warehouse";
+    given().when().get("warehouse/" + code).then().statusCode(200).body(containsString(code));
 
-    // List all, should have all 3 products the database has initially:
-    // given()
-    //     .when()
-    //     .get(path)
-    //     .then()
-    //     .statusCode(200)
-    //     .body(
-    //         containsString("MWH.001"),
-    //         containsString("MWH.012"),
-    //         containsString("MWH.023"),
-    //         containsString("ZWOLLE-001"),
-    //         containsString("AMSTERDAM-001"),
-    //         containsString("TILBURG-001"));
+    given()
+        .contentType("application/json")
+        .body("{\"location\":\"EINDHOVEN-001\",\"capacity\":25,\"stock\":5}")
+        .when()
+        .post("warehouse/" + code + "/replacement")
+        .then()
+        .statusCode(200)
+        .body(containsString(code));
 
-    // // Archive the ZWOLLE-001:
-    // given().when().delete(path + "/1").then().statusCode(204);
-
-    // // List all, ZWOLLE-001 should be missing now:
-    // given()
-    //     .when()
-    //     .get(path)
-    //     .then()
-    //     .statusCode(200)
-    //     .body(
-    //         not(containsString("ZWOLLE-001")),
-    //         containsString("AMSTERDAM-001"),
-    //         containsString("TILBURG-001"));
+    given().when().delete("warehouse/" + code).then().statusCode(204);
+    given().when().get("warehouse/" + code).then().statusCode(404);
   }
 }
