@@ -36,6 +36,19 @@ paths:
         '400':
           description: Invalid request parameters
 
+  /warehouse/archived:
+    get:
+      summary: List archived warehouse units
+      responses:
+        '200':
+          description: A list of archived warehouse units
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Warehouse'
+
   /warehouse/{id}:
     get:
       summary: Get a warehouse unit by ID
@@ -103,18 +116,6 @@ paths:
         '400':
           description: Invalid request parameters
 
-  /warehouse/archived:
-    get:
-      summary: List archived warehouse units
-      responses:
-        '200':
-          description: A list of archived warehouse units
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Warehouse'
 components:
   schemas:
     Warehouse:

@@ -34,7 +34,7 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
       throw new IllegalArgumentException("Warehouse does not exist");
     }
 
-    // Merge the version read by the use case. Hibernate will reject this update
+    // Merge the version read by the use case. Hibernate rejects this update
     // if another transaction has already changed the same warehouse.
     var entity = new DbWarehouse();
     entity.id = warehouse.id;
