@@ -42,6 +42,30 @@ The downside is additional build tooling and less flexibility when the generated
 For production, I would define the contract in OpenAPI, generate interfaces and DTOs, 
 and keep business logic in handwritten application services. This gives consistency for Product, Store, 
 and Warehouse APIs while keeping generated code separate from the domain.
+
+If consider pros and cons of each approachCoded directly:
+Coding endpoints directly:
+Pros:
+  - Fast to build, no extra setup
+  - Only one thing to maintain (the code)
+  - For a small internal API, coding directly (code-first) is the better default
+Cons:
+  - Other teams can't start integrating until backend is done
+  - No design review before coding starts
+  - Easy to make validation/error handling inconsistent
+  - API changes whenever the database model changes
+
+OpenAPI: 
+Pros:
+  - Other teams can build against the spec while backend is still in progress
+  - API design gets reviewed before any code is written
+  - Can auto-generate documentation and client code from the spec
+  - Keeps the API separate from the database structure
+Cons:
+  - More upfront work and process
+  - Two things to keep in sync (spec and code)
+  - Slower for quick prototypes or small internal tools
+
 ```
 ----
 3. Given the need to balance thorough testing with time and resource constraints, how would you prioritize and implement tests for this project? Which types of tests would you focus on, and how would you ensure test coverage remains effective over time?

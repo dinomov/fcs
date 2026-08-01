@@ -13,7 +13,7 @@
     h1, h2 { margin-top: 0; }
     form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: end; }
     label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: .9rem; }
-    input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #bbc4cc; border-radius: 4px; font: inherit; }
+    input, select { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #bbc4cc; border-radius: 4px; font: inherit; background: white; }
     button { border: 0; border-radius: 4px; padding: 10px 14px; color: white; background: #1769aa; cursor: pointer; }
     button.secondary { background: #68737d; }
     button.danger { background: #b3261e; }
@@ -26,287 +26,336 @@
     .success { color: #137333; }
     @media (max-width: 650px) { th:nth-child(1), td:nth-child(1) { display: none; } }
   </style>
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+  <script>
+    angular.module('WarehouseManagement', [])
+      .controller('ManagementController', function ($scope, $http, $q) {
+        $scope.products = [];
+        $scope.stores = [];
+        $scope.warehouses = [];
+        $scope.archivedWarehouses = [];
+        $scope.fulfillments = [];
+
+        $scope.productForm = {};
+        $scope.storeForm = {};
+        $scope.warehouseForm = {};
+        $scope.fulfillmentForm = {};
+
+        $scope.refresh = function () {
+          $q.all({
+            products: $http.get('/product'),
+            stores: $http.get('/store'),
+            warehouses: $http.get('/warehouse'),
+            archivedWarehouses: $http.get('/warehouse/archived'),
+            fulfillments: $http.get('/fulfillment')
+          }).then(function (result) {
+            $scope.products = result.products.data;
+            $scope.stores = result.stores.data;
+            $scope.warehouses = result.warehouses.data;
+            $scope.archivedWarehouses = result.archivedWarehouses.data;
+            $scope.fulfillments = result.fulfillments.data;
+          }, function (response) {
+            $scope.pageError = errorMessage(response);
+          });
+        };
+
+        $scope.saveProduct = function () {
+          var data = angular.copy($scope.productForm);
+          var id = data.id;
+          delete data.id;
+          var request = id
+            ? $http.put('/product/' + id, data)
+            : $http.post('/product', data);
+          request.then(function () {
+            $scope.productMessage = 'Product saved.';
+            $scope.clearProduct();
+            $scope.refresh();
+          }, function (response) {
+            $scope.productError = errorMessage(response);
+          });
+        };
+
+        $scope.editProduct = function (product) {
+          $scope.productForm = angular.copy(product);
+          clearMessage('product');
+        };
+
+        $scope.removeProduct = function (product) {
+          if (!window.confirm('Delete this product?')) return;
+          $http.delete('/product/' + product.id).then(function () {
+            $scope.productMessage = 'Product deleted.';
+            $scope.refresh();
+          }, function (response) {
+            $scope.productError = errorMessage(response);
+          });
+        };
+
+        $scope.clearProduct = function () {
+          $scope.productForm = {};
+        };
+
+        $scope.saveStore = function () {
+          var data = angular.copy($scope.storeForm);
+          var id = data.id;
+          delete data.id;
+          var request = id
+            ? $http.put('/store/' + id, data)
+            : $http.post('/store', data);
+          request.then(function () {
+            $scope.storeMessage = 'Store saved.';
+            $scope.clearStore();
+            $scope.refresh();
+          }, function (response) {
+            $scope.storeError = errorMessage(response);
+          });
+        };
+
+        $scope.editStore = function (store) {
+          $scope.storeForm = angular.copy(store);
+          clearMessage('store');
+        };
+
+        $scope.removeStore = function (store) {
+          if (!window.confirm('Delete this store?')) return;
+          $http.delete('/store/' + store.id).then(function () {
+            $scope.storeMessage = 'Store deleted.';
+            $scope.refresh();
+          }, function (response) {
+            $scope.storeError = errorMessage(response);
+          });
+        };
+
+        $scope.clearStore = function () {
+          $scope.storeForm = {};
+        };
+
+        $scope.saveWarehouse = function () {
+          var data = angular.copy($scope.warehouseForm);
+          var code = data.id;
+          delete data.id;
+          var request;
+          if (code) {
+            delete data.businessUnitCode;
+            request = $http.post('/warehouse/' + encodeURIComponent(code) + '/replacement', data);
+          } else {
+            request = $http.post('/warehouse', data);
+          }
+          request.then(function () {
+            $scope.warehouseMessage = code ? 'Warehouse replaced.' : 'Warehouse created.';
+            $scope.clearWarehouse();
+            $scope.refresh();
+          }, function (response) {
+            $scope.warehouseError = errorMessage(response);
+          });
+        };
+
+        $scope.editWarehouse = function (warehouse) {
+          $scope.warehouseForm = angular.copy(warehouse);
+          $scope.warehouseForm.id = warehouse.businessUnitCode;
+          clearMessage('warehouse');
+        };
+
+        $scope.archiveWarehouse = function (warehouse) {
+          if (!window.confirm('Archive this warehouse?')) return;
+          $http.delete('/warehouse/' + encodeURIComponent(warehouse.businessUnitCode))
+            .then(function () {
+              $scope.warehouseMessage = 'Warehouse archived.';
+              $scope.refresh();
+            }, function (response) {
+              $scope.warehouseError = errorMessage(response);
+            });
+        };
+
+        $scope.clearWarehouse = function () {
+          $scope.warehouseForm = {};
+        };
+
+        $scope.saveFulfillment = function () {
+          $http.post('/fulfillment', angular.copy($scope.fulfillmentForm))
+            .then(function () {
+              $scope.fulfillmentMessage = 'Fulfillment assignment saved.';
+              $scope.clearFulfillment();
+              $scope.refresh();
+            }, function (response) {
+              $scope.fulfillmentError = errorMessage(response);
+            });
+        };
+
+        $scope.removeFulfillment = function (assignment) {
+          if (!window.confirm('Remove this fulfillment assignment?')) return;
+          $http.delete('/fulfillment/' + assignment.id).then(function () {
+            $scope.fulfillmentMessage = 'Fulfillment assignment removed.';
+            $scope.refresh();
+          }, function (response) {
+            $scope.fulfillmentError = errorMessage(response);
+          });
+        };
+
+        $scope.clearFulfillment = function () {
+          $scope.fulfillmentForm = {};
+        };
+
+        function clearMessage(type) {
+          $scope[type + 'Message'] = '';
+          $scope[type + 'Error'] = '';
+        }
+
+        function errorMessage(response) {
+          return (response.data && (response.data.error || response.data.message))
+            || response.statusText
+            || 'Request failed';
+        }
+
+        $scope.refresh();
+      });
+  </script>
 </head>
-<body>
+<body ng-app="WarehouseManagement" ng-controller="ManagementController">
   <header>
     <h1>Warehouse Management</h1>
     <p>Manage products, stores and active warehouses.</p>
   </header>
 
   <main>
+    <p class="message error" ng-if="pageError">{{ pageError }}</p>
+
     <section>
       <h2>Products</h2>
-      <p id="product-message" class="message"></p>
-      <form id="product-form">
-        <input id="product-id" type="hidden">
-        <label>Name <input id="product-name" required maxlength="40"></label>
-        <label>Stock <input id="product-stock" type="number" min="0" required></label>
-        <label>Description <input id="product-description"></label>
-        <label>Price <input id="product-price" type="number" min="0" step="0.01"></label>
+      <p class="message success" ng-if="productMessage">{{ productMessage }}</p>
+      <p class="message error" ng-if="productError">{{ productError }}</p>
+      <form ng-submit="saveProduct()">
+        <input type="hidden" ng-model="productForm.id">
+        <label>Name <input type="text" ng-model="productForm.name" required maxlength="40"></label>
+        <label>Stock <input type="number" ng-model="productForm.stock" min="0" required></label>
+        <label>Description <input type="text" ng-model="productForm.description"></label>
+        <label>Price <input type="number" ng-model="productForm.price" min="0" step="0.01"></label>
         <div class="actions">
           <button type="submit">Save product</button>
-          <button type="button" class="secondary" id="product-cancel">Clear</button>
+          <button type="button" class="secondary" ng-click="clearProduct()">Clear</button>
         </div>
       </form>
       <table>
         <thead><tr><th>ID</th><th>Name</th><th>Stock</th><th>Price</th><th>Actions</th></tr></thead>
-        <tbody id="product-list"></tbody>
+        <tbody>
+          <tr ng-repeat="product in products">
+            <td>{{ product.id }}</td><td>{{ product.name }}</td><td>{{ product.stock }}</td>
+            <td>{{ product.price }}</td>
+            <td class="actions">
+              <button type="button" ng-click="editProduct(product)">Edit</button>
+              <button type="button" class="danger" ng-click="removeProduct(product)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
       </table>
     </section>
 
     <section>
       <h2>Stores</h2>
-      <p id="store-message" class="message"></p>
-      <form id="store-form">
-        <input id="store-id" type="hidden">
-        <label>Name <input id="store-name" required maxlength="40"></label>
-        <label>Products in stock <input id="store-stock" type="number" min="0" required></label>
+      <p class="message success" ng-if="storeMessage">{{ storeMessage }}</p>
+      <p class="message error" ng-if="storeError">{{ storeError }}</p>
+      <form ng-submit="saveStore()">
+        <input type="hidden" ng-model="storeForm.id">
+        <label>Name <input type="text" ng-model="storeForm.name" required maxlength="40"></label>
+        <label>Products in stock <input type="number" ng-model="storeForm.quantityProductsInStock" min="0" required></label>
         <div class="actions">
           <button type="submit">Save store</button>
-          <button type="button" class="secondary" id="store-cancel">Clear</button>
+          <button type="button" class="secondary" ng-click="clearStore()">Clear</button>
         </div>
       </form>
       <table>
         <thead><tr><th>ID</th><th>Name</th><th>Products in stock</th><th>Actions</th></tr></thead>
-        <tbody id="store-list"></tbody>
+        <tbody>
+          <tr ng-repeat="store in stores">
+            <td>{{ store.id }}</td><td>{{ store.name }}</td><td>{{ store.quantityProductsInStock }}</td>
+            <td class="actions">
+              <button type="button" ng-click="editStore(store)">Edit</button>
+              <button type="button" class="danger" ng-click="removeStore(store)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
       </table>
     </section>
 
     <section>
       <h2>Warehouses</h2>
-      <p>Editing a warehouse uses the replacement operation: the old row is archived and a new row keeps the same business unit code.</p>
-      <p id="warehouse-message" class="message"></p>
-      <form id="warehouse-form">
-        <input id="warehouse-id" type="hidden">
-        <label>Business unit code <input id="warehouse-code" required></label>
-        <label>Location <input id="warehouse-location" required></label>
-        <label>Capacity <input id="warehouse-capacity" type="number" min="0" required></label>
-        <label>Stock <input id="warehouse-stock" type="number" min="0" required></label>
+      <p>Editing a warehouse uses the replacement operation: the old row is archived and a new row keeps the same Business Unit Code.</p>
+      <p class="message success" ng-if="warehouseMessage">{{ warehouseMessage }}</p>
+      <p class="message error" ng-if="warehouseError">{{ warehouseError }}</p>
+      <form ng-submit="saveWarehouse()">
+        <input type="hidden" ng-model="warehouseForm.id">
+        <label>Business unit code <input type="text" ng-model="warehouseForm.businessUnitCode" ng-readonly="warehouseForm.id" required></label>
+        <label>Location <input type="text" ng-model="warehouseForm.location" required></label>
+        <label>Capacity <input type="number" ng-model="warehouseForm.capacity" min="0" required></label>
+        <label>Stock <input type="number" ng-model="warehouseForm.stock" min="0" required></label>
         <div class="actions">
           <button type="submit">Save warehouse</button>
-          <button type="button" class="secondary" id="warehouse-cancel">Clear</button>
+          <button type="button" class="secondary" ng-click="clearWarehouse()">Clear</button>
         </div>
       </form>
       <table>
         <thead><tr><th>Business unit</th><th>Location</th><th>Capacity</th><th>Stock</th><th>Actions</th></tr></thead>
-        <tbody id="warehouse-list"></tbody>
+        <tbody>
+          <tr ng-repeat="warehouse in warehouses">
+            <td>{{ warehouse.businessUnitCode }}</td><td>{{ warehouse.location }}</td>
+            <td>{{ warehouse.capacity }}</td><td>{{ warehouse.stock }}</td>
+            <td class="actions">
+              <button type="button" ng-click="editWarehouse(warehouse)">Replace</button>
+              <button type="button" class="danger" ng-click="archiveWarehouse(warehouse)">Archive</button>
+            </td>
+          </tr>
+        </tbody>
       </table>
       <h3>Archived warehouse history</h3>
       <table>
-        <thead><tr><th>Business unit</th><th>Location</th><th>Capacity</th><th>Stock</th><th>Archived</th></tr></thead>
-        <tbody id="archived-warehouse-list"></tbody>
+        <thead><tr><th>Business unit</th><th>Location</th><th>Capacity</th><th>Stock</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr ng-repeat="warehouse in archivedWarehouses">
+            <td>{{ warehouse.businessUnitCode }}</td><td>{{ warehouse.location }}</td>
+            <td>{{ warehouse.capacity }}</td><td>{{ warehouse.stock }}</td><td>Archived</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Fulfillment Assignments</h2>
+      <p>Assign an active warehouse to fulfill a product for a store.</p>
+      <p class="message success" ng-if="fulfillmentMessage">{{ fulfillmentMessage }}</p>
+      <p class="message error" ng-if="fulfillmentError">{{ fulfillmentError }}</p>
+      <form ng-submit="saveFulfillment()">
+        <label>Product
+          <select ng-model="fulfillmentForm.productId" ng-options="product.id as product.name for product in products" required>
+            <option value="">Select product</option>
+          </select>
+        </label>
+        <label>Store
+          <select ng-model="fulfillmentForm.storeId" ng-options="store.id as store.name for store in stores" required>
+            <option value="">Select store</option>
+          </select>
+        </label>
+        <label>Warehouse
+          <select ng-model="fulfillmentForm.warehouseBusinessUnitCode" ng-options="warehouse.businessUnitCode as warehouse.businessUnitCode for warehouse in warehouses" required>
+            <option value="">Select warehouse</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button type="submit">Assign warehouse</button>
+          <button type="button" class="secondary" ng-click="clearFulfillment()">Clear</button>
+        </div>
+      </form>
+      <table>
+        <thead><tr><th>ID</th><th>Product</th><th>Store</th><th>Warehouse</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr ng-repeat="assignment in fulfillments">
+            <td>{{ assignment.id }}</td>
+            <td>{{ assignment.productId }}</td>
+            <td>{{ assignment.storeId }}</td>
+            <td>{{ assignment.warehouseBusinessUnitCode }}</td>
+            <td><button type="button" class="danger" ng-click="removeFulfillment(assignment)">Remove</button></td>
+          </tr>
+        </tbody>
       </table>
     </section>
   </main>
-
-  <script>
-    const jsonHeaders = { 'Content-Type': 'application/json' };
-
-    async function request(url, options = {}) {
-      const response = await fetch(url, options);
-      const text = await response.text();
-      let body = {};
-      try { body = text ? JSON.parse(text) : {}; } catch (_) { body = { error: text }; }
-      if (!response.ok) {
-        throw new Error(body.error || body.message || `Request failed (${response.status})`);
-      }
-      return body;
-    }
-
-    function showMessage(id, message, error = false) {
-      const element = document.getElementById(id);
-      element.textContent = message || '';
-      element.className = `message ${error ? 'error' : 'success'}`;
-    }
-
-    function productPayload() {
-      const price = document.getElementById('product-price').value;
-      return {
-        name: document.getElementById('product-name').value,
-        stock: Number(document.getElementById('product-stock').value),
-        description: document.getElementById('product-description').value || null,
-        price: price === '' ? null : Number(price)
-      };
-    }
-
-    async function loadProducts() {
-      const products = await request('/product');
-      document.getElementById('product-list').innerHTML = products.map(product => `
-        <tr>
-          <td>${product.id}</td><td>${escapeHtml(product.name)}</td><td>${product.stock}</td>
-          <td>${product.price == null ? '' : product.price}</td>
-          <td class="actions">
-            <button type="button" data-product-edit="${product.id}">Edit</button>
-            <button type="button" class="danger" data-product-delete="${product.id}">Delete</button>
-          </td>
-        </tr>`).join('');
-    }
-
-    document.getElementById('product-form').addEventListener('submit', async event => {
-      event.preventDefault();
-      const id = document.getElementById('product-id').value;
-      try {
-        await request(id ? `/product/${id}` : '/product', {
-          method: id ? 'PUT' : 'POST', headers: jsonHeaders,
-          body: JSON.stringify(productPayload())
-        });
-        clearProductForm(); await loadProducts(); showMessage('product-message', 'Product saved.');
-      } catch (error) { showMessage('product-message', error.message, true); }
-    });
-
-    document.getElementById('product-list').addEventListener('click', async event => {
-      const editId = event.target.dataset.productEdit;
-      const deleteId = event.target.dataset.productDelete;
-      try {
-        if (editId) {
-          const product = await request(`/product/${editId}`);
-          document.getElementById('product-id').value = product.id;
-          document.getElementById('product-name').value = product.name || '';
-          document.getElementById('product-stock').value = product.stock ?? 0;
-          document.getElementById('product-description').value = product.description || '';
-          document.getElementById('product-price').value = product.price ?? '';
-        } else if (deleteId && confirm('Delete this product?')) {
-          await request(`/product/${deleteId}`, { method: 'DELETE' });
-          await loadProducts(); showMessage('product-message', 'Product deleted.');
-        }
-      } catch (error) { showMessage('product-message', error.message, true); }
-    });
-
-    document.getElementById('product-cancel').addEventListener('click', clearProductForm);
-    function clearProductForm() {
-      document.getElementById('product-form').reset();
-      document.getElementById('product-id').value = '';
-    }
-
-    async function loadStores() {
-      const stores = await request('/store');
-      document.getElementById('store-list').innerHTML = stores.map(store => `
-        <tr>
-          <td>${store.id}</td><td>${escapeHtml(store.name)}</td>
-          <td>${store.quantityProductsInStock}</td>
-          <td class="actions">
-            <button type="button" data-store-edit="${store.id}">Edit</button>
-            <button type="button" class="danger" data-store-delete="${store.id}">Delete</button>
-          </td>
-        </tr>`).join('');
-    }
-
-    document.getElementById('store-form').addEventListener('submit', async event => {
-      event.preventDefault();
-      const id = document.getElementById('store-id').value;
-      const payload = {
-        name: document.getElementById('store-name').value,
-        quantityProductsInStock: Number(document.getElementById('store-stock').value)
-      };
-      try {
-        await request(id ? `/store/${id}` : '/store', {
-          method: id ? 'PUT' : 'POST', headers: jsonHeaders,
-          body: JSON.stringify(payload)
-        });
-        clearStoreForm(); await loadStores(); showMessage('store-message', 'Store saved.');
-      } catch (error) { showMessage('store-message', error.message, true); }
-    });
-
-    document.getElementById('store-list').addEventListener('click', async event => {
-      const editId = event.target.dataset.storeEdit;
-      const deleteId = event.target.dataset.storeDelete;
-      try {
-        if (editId) {
-          const store = await request(`/store/${editId}`);
-          document.getElementById('store-id').value = store.id;
-          document.getElementById('store-name').value = store.name || '';
-          document.getElementById('store-stock').value = store.quantityProductsInStock ?? 0;
-        } else if (deleteId && confirm('Delete this store?')) {
-          await request(`/store/${deleteId}`, { method: 'DELETE' });
-          await loadStores(); showMessage('store-message', 'Store deleted.');
-        }
-      } catch (error) { showMessage('store-message', error.message, true); }
-    });
-
-    document.getElementById('store-cancel').addEventListener('click', clearStoreForm);
-    function clearStoreForm() {
-      document.getElementById('store-form').reset();
-      document.getElementById('store-id').value = '';
-    }
-
-    function warehousePayload() {
-      return {
-        businessUnitCode: document.getElementById('warehouse-code').value,
-        location: document.getElementById('warehouse-location').value,
-        capacity: Number(document.getElementById('warehouse-capacity').value),
-        stock: Number(document.getElementById('warehouse-stock').value)
-      };
-    }
-
-    async function loadWarehouses() {
-      const warehouses = await request('/warehouse');
-      document.getElementById('warehouse-list').innerHTML = warehouses.map(warehouse => `
-        <tr>
-          <td>${escapeHtml(warehouse.businessUnitCode)}</td><td>${escapeHtml(warehouse.location)}</td>
-          <td>${warehouse.capacity}</td><td>${warehouse.stock}</td>
-          <td class="actions">
-            <button type="button" data-warehouse-edit="${escapeHtml(warehouse.businessUnitCode)}">Replace</button>
-            <button type="button" class="danger" data-warehouse-delete="${escapeHtml(warehouse.businessUnitCode)}">Archive</button>
-          </td>
-        </tr>`).join('');
-
-      const archived = await request('/warehouse/archived');
-      document.getElementById('archived-warehouse-list').innerHTML = archived.map(warehouse => `
-        <tr>
-          <td>${escapeHtml(warehouse.businessUnitCode)}</td><td>${escapeHtml(warehouse.location)}</td>
-          <td>${warehouse.capacity}</td><td>${warehouse.stock}</td><td>Archived</td>
-        </tr>`).join('');
-    }
-
-    document.getElementById('warehouse-form').addEventListener('submit', async event => {
-      event.preventDefault();
-      const code = document.getElementById('warehouse-id').value;
-      const payload = warehousePayload();
-      try {
-        const url = code ? `/warehouse/${encodeURIComponent(code)}/replacement` : '/warehouse';
-        if (code) delete payload.businessUnitCode;
-        await request(url, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
-        clearWarehouseForm(); await loadWarehouses(); showMessage('warehouse-message', code ? 'Warehouse replaced.' : 'Warehouse created.');
-      } catch (error) { showMessage('warehouse-message', error.message, true); }
-    });
-
-    document.getElementById('warehouse-list').addEventListener('click', async event => {
-      const editCode = event.target.dataset.warehouseEdit;
-      const deleteCode = event.target.dataset.warehouseDelete;
-      try {
-        if (editCode) {
-          const warehouse = await request(`/warehouse/${encodeURIComponent(editCode)}`);
-          document.getElementById('warehouse-id').value = warehouse.businessUnitCode;
-          document.getElementById('warehouse-code').value = warehouse.businessUnitCode;
-          document.getElementById('warehouse-code').readOnly = true;
-          document.getElementById('warehouse-location').value = warehouse.location || '';
-          document.getElementById('warehouse-capacity').value = warehouse.capacity ?? '';
-          document.getElementById('warehouse-stock').value = warehouse.stock ?? '';
-        } else if (deleteCode && confirm('Archive this warehouse?')) {
-          await request(`/warehouse/${encodeURIComponent(deleteCode)}`, { method: 'DELETE' });
-          await loadWarehouses(); showMessage('warehouse-message', 'Warehouse archived.');
-        }
-      } catch (error) { showMessage('warehouse-message', error.message, true); }
-    });
-
-    document.getElementById('warehouse-cancel').addEventListener('click', clearWarehouseForm);
-    function clearWarehouseForm() {
-      document.getElementById('warehouse-form').reset();
-      document.getElementById('warehouse-id').value = '';
-      document.getElementById('warehouse-code').readOnly = false;
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? '').replace(/[&<>'"]/g, character => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-      }[character]));
-    }
-
-    Promise.all([loadProducts(), loadStores(), loadWarehouses()]).catch(error => {
-      showMessage('product-message', error.message, true);
-      showMessage('store-message', error.message, true);
-      showMessage('warehouse-message', error.message, true);
-    });
-  </script>
 </body>
 </html>
